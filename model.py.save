@@ -1,0 +1,351 @@
+from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from pydantic import BaseMod
+ 			
+ 
+i mport chromadb
+import logging
+import os
+import uuid
+import datetime
+import io
+import joblib
+
+from typing import List, Optional
+
+# --- CLOUD API SETUP ---
+from openai import OpenAI
+
+# THE FIX: Updated with your working Groq API Key and correct Groq Base URL
+CLOUD_API_KEY = "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"
+CLOUD_BASE_URL = os.environ.get("CLOUD_BASE_URL", "https://api.groq.com/openai/v1") 
+
+ai_client = OpenAI(
+    api_key=CLOUD_API_KEY,
+    base_url=CLOUD_BASE_URL
+)
+
+# --- Import User's Custom OCR Modules ---
+try:
+    from preprocessing import preprocess_image
+    from ocr_engine import run_ocr
+except ImportError:
+    logging.warning("Custom OCR modules not found. Please ensure 'preprocessing.py' and 'ocr_engine.py' are in the same folder.")
+
+# Specialized libraries for PDF/Word extraction (ensure these are installed)
+try:
+    import PyPDF2
+    from docx import Document as DocxDocument
+except ImportError:
+    PyPDF2 = None
+    DocxDocument = None
+
+# --- Configuration & Logging ---
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Requirements: Audit Trail and Data Storage
+AUDIT_FILE = "audit_trail.log"
+UPLOAD_DIR = "data"
+
+# Load the trained ML model when the server starts
+try:
+    car_model = joblib.load('car_price_model.pkl')
+    logger.info("Car Price ML Model loaded successfully.")
+except Exception as e:
+    logger.warning(f"Could not load ML model: {e}")
+    car_model = None
+
+# Create a schema for the API input
+class CarPredictionRequest(BaseModel):
+    brand: str
+    year: int
+    kilometers: int
+    damaged: str
+
+if not os.path.exists(UPLOAD_DIR):
+    os.makedirs(UPLOAD_DIR)
+    logger.info(f"Initialized storage directory: {UPLOAD_DIR}")
+
+def log_audit_event(event_type: str, details: str):
+    """Appends significant actions to a permanent local log file for auditing."""
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    entry = f"[{timestamp}] EVENT: {event_type} | DETAILS: {details}\n"
+    try:
+        with open(AUDIT_FILE, "a") as f:
+            f.write(entry)
+    except Exception as e:
+        logger.error(f"Audit Logging Failed: {e}")
+
+app = FastAPI(title="AI Academy Cloud API")
+
+# Enable CORS for frontend connectivity
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"], 
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# --- Mock Database / State ---
+db_state = {
+    "users": ["admin", "jehad_taha", "reviewer_1"],
+    "max_users": 5
+}
+
+# --- Vector DB Initialization ---
+# ChromaDB stores our knowledge base
+chroma_client = chromadb.PersistentClient(path="./chroma_db")
+collection = chroma_client.get_or_create_collection(name="academy_knowledge")
+
+# --- Schemas ---
+class QueryRequest(BaseModel):
+    language_type: str
+    prompt: str
+    use_general_knowledge: bool = False
+    # THE FIX: Updated to Groq's official active Llama 3.1 model name
+    model: str = "llama-3.1-8b-instant" 
+
+class QueryResponse(BaseModel):
+    language_type: str
+    prompt: str
+    model_name: str
+    model_response: str
+    context: Optional[str] = None
+
+# --- Helper Functions ---
+def get_user_count():
+    return len(db_state["users"])
+
+def chunk_text(text: str, max_chars: int = 1000):
+    """Splits text into manageable pieces for vectorization."""
+    paragraphs = [p.strip() for p in text.split('\n\n') if p.strip()]
+    final_chunks = []
+    for p in paragraphs:
+        if len(p) <= max_chars:
+            final_chunks.append(p)
+        else:
+            for i in range(0, len(p), max_chars):
+                final_chunks.append(p[i:i+max_chars])
+    return final_chunks
+
+def extract_text_from_file(filename: str, content: bytes) -> str:
+    """Handles text extraction from .txt, .pdf, and .docx."""
+    ext = os.path.splitext(filename)[1].lower()
+    
+    if ext == ".txt":
+        return content.decode('utf-8', errors='ignore')
+            
+    elif ext == ".pdf":
+        if not PyPDF2:
+            raise ImportError("PyPDF2 not installed. Use 'pip install PyPDF2'")
+        pdf_reader = PyPDF2.PdfReader(io.BytesIO(content))
+        return "\n".join([page.extract_text() for page in pdf_reader.pages])
+        
+    elif ext == ".docx":
+        if not DocxDocument:
+            raise ImportError("python-docx not installed. Use 'pip install python-docx'")
+        doc = DocxDocument(io.BytesIO(content))
+        return "\n".join([para.text for para in doc.paragraphs])
+        
+    elif ext == ".csv":
+        return content.decode('utf-8', errors='ignore')
+        
+    else:
+        raise ValueError(f"Unsupported file type: {ext}")
+
+# --- Endpoints ---
+
+@app.get("/")
+async def root():
+    """Serves the FrontEnd.html UI directly if testing locally."""
+    if os.path.exists("FrontEnd.html"):
+        return FileResponse("FrontEnd.html")
+    return {"message": "Cloud API Online. Use Firebase Hosting for the frontend."}
+
+@app.get("/knowledgebase")
+async def get_kb_page():
+    """Serves the Knowledgebase.html UI."""
+    if os.path.exists("Knowledgebase.html"):
+        return FileResponse("Knowledgebase.html")
+    return {"message": "Knowledgebase.html not found in directory."}
+
+@app.get("/status")
+async def get_status():
+    """Health check for system and Cloud API connectivity."""
+    try:
+        # Quick check to ensure the cloud API is reachable
+        ai_client.models.list()
+        connected = True
+    except Exception as e:
+        logger.error(f"Cloud API Connection Error: {e}")
+        connected = False
+        
+    return {
+        "cloud_api_connected": connected,
+        "current_users": get_user_count(),
+        "max_users": db_state["max_users"],
+        "status": "active" if connected else "degraded"
+    }
+
+@app.post("/ocr")
+async def extract_image_text(file: UploadFile = File(...)):
+    """Receives an image, runs user's custom OCR pipeline, and returns text."""
+    try:
+        temp_file_path = os.path.join(UPLOAD_DIR, f"temp_{file.filename}")
+        content = await file.read()
+        
+        with open(temp_file_path, "wb") as f:
+            f.write(content)
+            
+        # 1. Run user's preprocessing
+        processed_image = preprocess_image(temp_file_path)
+        
+        # 2. Run user's OCR engine
+        extracted_text = run_ocr(processed_image, language="eng+ara")
+        
+        # 3. Clean up the temporary file
+        os.remove(temp_file_path)
+        
+        return {"text": extracted_text.strip()}
+    
+    except Exception as e:
+        logger.error(f"OCR Pipeline Error: {str(e)}")
+        if 'temp_file_path' in locals() and os.path.exists(temp_file_path):
+            os.remove(temp_file_path)
+        raise HTTPException(status_code=500, detail=f"OCR Failed: {str(e)}")
+
+@app.post("/upload")
+async def upload_document(file: UploadFile = File(...)):
+    """Handles file storage in 'data/' and vectorizes content via Cloud API."""
+    try:
+        # 1. DELETE OLD FILES
+        for existing_file in os.listdir(UPLOAD_DIR):
+            old_file_path = os.path.join(UPLOAD_DIR, existing_file)
+            if os.path.isfile(old_file_path):
+                os.remove(old_file_path)
+                
+        # 2. WIPE VECTOR DATABASE
+        existing_docs = collection.get()
+        if existing_docs and existing_docs['ids']:
+            collection.delete(ids=existing_docs['ids'])
+
+        # 3. Save the new physical file
+        file_path = os.path.join(UPLOAD_DIR, file.filename)
+        content = await file.read()
+        
+        with open(file_path, "wb") as f:
+            f.write(content)
+        
+        # 4. Extract text and chunk it
+        text = extract_text_from_file(file.filename, content)
+        chunks = chunk_text(text)
+        
+        if not chunks:
+            raise HTTPException(status_code=400, detail="Document content could not be extracted.")
+
+        # 5. Vectorization using ChromaDB (Groq handles Chat, Chroma handles embeddings natively)
+        for chunk in chunks:
+            collection.add(
+                ids=[str(uuid.uuid4())],
+                documents=[chunk],
+                metadatas=[{"filename": file.filename, "path": file_path}]
+            )
+
+        log_audit_event("DOCUMENT_UPLOAD", f"Replaced knowledge base with '{file.filename}'.")
+        return {"success": True, "message": f"Successfully indexed {file.filename}", "chunks": len(chunks)}
+
+    except Exception as e:
+        logger.error(f"Upload/Index Error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to process document: {str(e)}")
+
+@app.post("/ask", response_model=QueryResponse)
+async def ask_ai(request: QueryRequest):
+    """Retrieval-Augmented Generation (RAG) using Cloud API."""
+    
+    if get_user_count() > db_state["max_users"]:
+        raise HTTPException(status_code=403, detail="License limit reached.")
+
+    try:
+        context = ""
+        # Mode: Local Document Search
+        if not request.use_general_knowledge:
+            # THE FIX: Let ChromaDB query the text directly!
+            results = collection.query(query_texts=[request.prompt], n_results=3)
+            context = "\n---\n".join(results['documents'][0]) if results['documents'] else ""
+            
+            system_prompt = (
+                f"System: You are an AI Assistant for Company Enterprise. Answer STRICTLY in {request.language_type}. "
+                f"Answer the user's question using STRICTLY the Context below. If the answer is not in the context, "
+                f"say you do not know based on the provided document.\n\n"
+                f"Context: {context}\n\nQuestion: {request.prompt}"
+            )
+        else:
+            # Mode: General Knowledge
+            system_prompt = (
+                f"System: You are an AI Assistant. Answer STRICTLY in {request.language_type}. "
+                f"Do NOT use the local document knowledge base. Answer the user's question using only your general knowledge.\n\n"
+                f"Question: {request.prompt}"
+            )
+
+        # Generate Answer USING CLOUD LLM
+        response = ai_client.chat.completions.create(
+            model=request.model, 
+            messages=[{"role": "user", "content": system_prompt}]
+        )
+
+        return QueryResponse(
+            language_type=request.language_type,
+            prompt=request.prompt,
+            model_name=request.model,
+            model_response=response.choices[0].message.content,
+            context=context if context else None
+        )
+
+    except Exception as e:
+        logger.error(f"Inference Error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Cloud Engine Error - {str(e)}")
+
+@app.post("/admin/register")
+async def register_user(username: str):
+    """Demonstrate Offline License Enforcement."""
+    if len(db_state["users"]) >= db_state["max_users"]:
+        log_audit_event("REGISTRATION_BLOCK", f"Registration blocked for: {username}")
+        raise HTTPException(status_code=400, detail="Max 5 users limit reached.")
+    
+    db_state["users"].append(username)
+    log_audit_event("USER_REGISTRATION", f"User {username} registered. Total: {len(db_state['users'])}")
+    return {"message": f"User {username} registered successfully."}
+
+
+@app.post("/predict-car-price")
+async def predict_car_price(request: CarPredictionRequest):
+    """Custom ML Prediction Component: Predicts used car prices."""
+    if car_model is None:
+        raise HTTPException(status_code=500, detail="ML Model is not loaded.")
+    
+    try:
+        import pandas as pd
+        input_data = pd.DataFrame([{
+            'brand': request.brand,
+            'year': request.year,
+            'kilometers': request.kilometers,
+            'damaged': request.damaged
+        }])
+        
+        predicted_price = car_model.predict(input_data)[0]
+        
+        return {
+            "status": "success",
+            "car_details": request.dict(),
+            "predicted_price_usd": round(predicted_price, 2)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    
+if __name__ == "__main__":
+    import uvicorn
+    # Changed back to 0.0.0.0 for cloud readiness
+    uvicorn.run(app, host="0.0.0.0", port=8000)

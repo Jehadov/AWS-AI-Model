@@ -1,0 +1,11 @@
+firebase-functions
+fastapi
+openai
+chromadb
+pandas
+scikit-learn
+joblib
+PyPDF2
+python-docx
+onnxruntime
+python-multipart

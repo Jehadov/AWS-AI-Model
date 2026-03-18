@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
+    <title>Company Enterprise AI - Assistant</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; height: 100vh; height: -webkit-fill-available; overflow: hidden; }
+        .scrollbar-thin::-webkit-scrollbar { width: 4px; }
+        .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+        .scrollbar-thin::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+        .message-appear { animation: slideUp 0.3s ease-out forwards; }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        /* Fix for mobile browser address bars */
+        .h-screen-fix { height: 100vh; height: calc(var(--vh, 1vh) * 100); }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900">
+
+    <div id="car-modal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden transform message-appear max-h-[90vh] overflow-y-auto">
+            <div class="p-5 border-b border-slate-100 flex justify-between items-center bg-indigo-50/50 sticky top-0 bg-white z-10">
+                <div class="flex items-center gap-3">
+                    <div class="bg-indigo-600 p-2 rounded-xl text-white shadow-md"><i data-lucide="car" class="w-5 h-5"></i></div>
+                    <h3 class="font-bold text-lg text-slate-800 tracking-tight">Car Predictor</h3>
+                </div>
+                <button onclick="closeCarModal()" class="text-slate-400 hover:text-slate-700 bg-white border border-slate-100 rounded-full p-1.5 shadow-sm transition-colors"><i data-lucide="x" class="w-4 h-4"></i></button>
+            </div>
+            <div class="p-6">
+                <form id="car-predict-form" class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Brand</label>
+                        <select id="car-brand" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none font-medium text-slate-700">
+                            <option value="Toyota">Toyota</option>
+                            <option value="Ford">Ford</option>
+                            <option value="BMW">BMW</option>
+                            <option value="Honda">Honda</option>
+                            <option value="Hyundai">Hyundai</option>
+                        </select>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Year</label>
+                            <input type="number" id="car-year" value="2018" min="1990" max="2026" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none font-medium text-slate-700">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Kilometers</label>
+                            <input type="number" id="car-km" value="80000" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none font-medium text-slate-700">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Damaged?</label>
+                        <select id="car-damaged" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none font-medium text-slate-700">
+                            <option value="No">No</option>
+                            <option value="Yes">Yes</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="w-full bg-indigo-600 text-white font-bold rounded-xl py-4 mt-2 hover:bg-indigo-700 transition-colors flex justify-center items-center gap-2 shadow-lg shadow-indigo-200">
+                        <i data-lucide="calculator" class="w-4 h-4"></i> Estimate Value
+                    </button>
+                </form>
+                <div id="car-result-area" class="hidden mt-6 p-5 bg-green-50 border border-green-100 rounded-2xl text-center message-appear">
+                    <p class="text-xs font-bold text-green-600 uppercase tracking-widest mb-1">Predicted Value</p>
+                    <p class="text-3xl font-black text-green-700" id="car-predicted-price">$0</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="flex h-screen-fix overflow-hidden">
+        <aside id="sidebar" class="w-72 bg-white border-r border-slate-200 flex flex-col z-[110] fixed inset-y-0 left-0 transform -translate-x-full md:relative md:translate-x-0 transition-transform duration-300 ease-in-out shadow-2xl md:shadow-none">
+            <div class="p-6 border-b border-slate-100 flex justify-between items-center">
+                <div class="flex items-center gap-2">
+                    <div class="bg-indigo-600 p-2 rounded-lg shadow-lg shadow-indigo-200">
+                        <i data-lucide="building-2" class="text-white w-5 h-5"></i>
+                    </div>
+                    <h1 class="font-bold text-lg tracking-tight">Company AI</h1>
+                </div>
+                <button onclick="toggleSidebar()" class="md:hidden text-slate-400 hover:text-slate-700 p-1">
+                    <i data-lucide="chevron-left" class="w-6 h-6"></i>
+                </button>
+            </div>
+            <nav class="flex-1 p-4 space-y-2 overflow-y-auto scrollbar-thin">
+                <div class="text-xs font-semibold text-slate-400 px-2 py-1 uppercase tracking-wider">Workspace</div>
+                <button onclick="navigateTo('/', 'FrontEnd.html')" class="w-full flex items-center gap-3 px-3 py-3 bg-indigo-50 text-indigo-700 rounded-xl font-medium transition-all group">
+                    <i data-lucide="message-square" class="w-[18px] h-[18px]"></i> <span>AI Assistant</span>
+                </button>
+                <button onclick="navigateTo('/knowledgebase', 'KnowledgeBase.html')" class="w-full flex items-center gap-3 px-3 py-3 text-slate-600 hover:bg-slate-50 rounded-xl font-medium transition-all group">
+                    <i data-lucide="files" class="w-[18px] h-[18px]"></i> <span>Knowledge Base</span>
+                </button>
+                <div class="text-xs font-semibold text-slate-400 px-2 py-1 mt-6 uppercase tracking-wider">ML Components</div>
+                <button onclick="openCarModal()" class="w-full flex items-center gap-3 px-3 py-3 text-slate-600 hover:bg-indigo-50 hover:text-indigo-700 rounded-xl font-medium transition-all group">
+                    <i data-lucide="car" class="w-[18px] h-[18px]"></i> <span>Car Predictor</span>
+                </button>
+            </nav>
+        </aside>
+
+        <main class="flex-1 flex flex-col relative bg-white min-w-0">
+            <header class="h-16 border-b border-slate-100 flex items-center justify-between px-4 md:px-8 bg-white/90 backdrop-blur-md sticky top-0 z-40 flex-shrink-0">
+                <div class="flex items-center gap-3 overflow-hidden">
+                    <button onclick="toggleSidebar()" class="md:hidden p-2 -ml-2 text-slate-500 hover:bg-slate-100 rounded-lg transition-colors">
+                        <i data-lucide="menu" class="w-6 h-6"></i>
+                    </button>
+                    <div class="flex flex-col md:flex-row md:items-center md:gap-3">
+                        <span class="text-xs md:text-sm font-bold text-indigo-600 whitespace-nowrap">Enterprise Online</span>
+                        <span class="hidden md:block w-1 h-1 bg-slate-300 rounded-full"></span>
+                        <span class="text-[10px] md:text-xs text-slate-400 font-medium truncate uppercase tracking-widest">v1.2 Secure</span>
+                    </div>
+                </div>
+            </header>
+
+            <section id="view-chat" class="flex-1 flex flex-col relative overflow-hidden">
+                <div id="drop-overlay" class="hidden absolute inset-0 bg-indigo-50/90 backdrop-blur-sm z-50 flex-col items-center justify-center border-4 border-indigo-400 border-dashed m-4 rounded-3xl transition-all text-center p-6">
+                    <div class="bg-white p-5 rounded-full shadow-xl mb-4 text-indigo-600 animate-bounce">
+                        <i data-lucide="image-plus" class="w-10 h-10"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-indigo-700">Extract Text</h3>
+                    <p class="text-slate-500 font-medium mt-2">Drop image to scan text</p>
+                </div>
+
+                <div id="chat-container" class="flex-1 overflow-y-auto p-4 md:p-8 space-y-6 scrollbar-thin">
+                    <div class="flex justify-start">
+                        <div class="flex gap-3 max-w-[90%] md:max-w-[80%]">
+                            <div class="w-8 h-8 rounded-xl flex items-center justify-center bg-indigo-50 border border-indigo-100 flex-shrink-0">
+                                <i data-lucide="bot" class="w-4 h-4 text-indigo-600"></i>
+                            </div>
+                            <div class="p-3.5 rounded-2xl shadow-sm text-sm bg-white border border-slate-100 text-slate-800 rounded-tl-none leading-relaxed">
+                                Welcome, <b>Jehad</b>. How can I assist you with your projects today? You can drag images here or use the camera icon to scan documents.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="p-4 md:p-6 border-t border-slate-100 bg-white">
+                    <div id="image-preview-area" class="hidden absolute bottom-[100%] left-4 right-4 mb-2 p-3 bg-white border border-slate-200 rounded-2xl shadow-xl items-center gap-3 z-20">
+                        <img id="preview-img" src="" class="w-12 h-12 object-cover rounded-lg border shadow-sm">
+                        <div class="flex-1 min-w-0">
+                            <p id="preview-name" class="text-xs font-bold text-slate-700 truncate"></p>
+                            <p id="preview-status" class="text-[10px] font-bold uppercase tracking-wider text-indigo-600"></p>
+                        </div>
+                        <button onclick="closeImagePreview()" class="p-1.5 bg-slate-50 rounded-full text-slate-400"><i data-lucide="x" class="w-4 h-4"></i></button>
+                    </div>
+
+                    <form id="chat-form" class="max-w-4xl mx-auto space-y-3">
+                        <div class="flex items-center px-1">
+                            <label class="flex items-center gap-2 text-[11px] text-slate-500 font-bold cursor-pointer uppercase tracking-wider">
+                                <input type="checkbox" id="document-mode-toggle" class="w-3.5 h-3.5 text-indigo-600 rounded border-slate-300">
+                                Knowledge Base
+                            </label>
+                        </div>
+
+                        <div class="relative flex items-center gap-2">
+                            <div class="relative flex-1">
+                                <input type="text" id="user-input" autocomplete="off" placeholder="Message..." class="w-full bg-slate-50 border border-slate-200 rounded-2xl py-4 pl-12 pr-4 focus:outline-none focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-500 transition-all text-[15px] md:text-sm shadow-inner">
+                                <button type="button" onclick="document.getElementById('ocr-input').click()" class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-indigo-600 p-1">
+                                    <i data-lucide="camera" class="w-5 h-5"></i>
+                                </button>
+                                <input type="file" id="ocr-input" class="hidden" accept="image/*" onchange="handleOCR(this)">
+                            </div>
+                            <button type="submit" id="submit-btn" class="bg-indigo-600 text-white p-4 rounded-2xl hover:bg-indigo-700 shadow-lg shadow-indigo-100 active:scale-95 transition-all">
+                                <i data-lucide="send" class="w-5 h-5"></i>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        // Adjust for mobile VH
+        let vh = window.innerHeight * 0.01;
+        document.documentElement.style.setProperty('--vh', `${vh}px`);
+        window.addEventListener('resize', () => {
+            let vh = window.innerHeight * 0.01;
+            document.documentElement.style.setProperty('--vh', `${vh}px`);
+        });
+
+        const API_BASE_URL = window.location.origin;
+        const chatContainer = document.getElementById('chat-container');
+        const chatForm = document.getElementById('chat-form');
+        const userInput = document.getElementById('user-input');
+        const sidebar = document.getElementById('sidebar');
+
+        lucide.createIcons();
+
+        function toggleSidebar() {
+            sidebar.classList.toggle('-translate-x-full');
+        }
+
+        function navigateTo(route, file) { 
+            window.location.protocol === 'file:' ? window.location.assign(file) : window.location.assign(route); 
+        }
+
+        function openCarModal() {
+            document.getElementById('car-modal').classList.remove('hidden');
+            if(window.innerWidth < 768) toggleSidebar();
+        }
+
+        function closeCarModal() { document.getElementById('car-modal').classList.add('hidden'); }
+
+        // OCR & Chat Logic (Same as yours, but kept intact)
+        async function processOCRFile(file) {
+            const previewArea = document.getElementById('image-preview-area');
+            const previewImg = document.getElementById('preview-img');
+            const previewName = document.getElementById('preview-name');
+            const previewStatus = document.getElementById('preview-status');
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                previewImg.src = e.target.result;
+                previewName.innerText = file.name;
+                previewStatus.innerText = "Scanning...";
+                previewArea.classList.remove('hidden'); previewArea.classList.add('flex');
+            };
+            reader.readAsDataURL(file);
+            const formData = new FormData();
+            formData.append('file', file);
+            try {
+                const res = await fetch(`${API_BASE_URL}/ocr`, { method: 'POST', body: formData });
+                const data = await res.json();
+                if (res.ok) {
+                    userInput.value += (userInput.value ? ' ' : '') + data.text;
+                    previewStatus.innerText = "Success!";
+                    previewStatus.classList.replace('text-indigo-600', 'text-green-600');
+                    setTimeout(closeImagePreview, 3000);
+                }
+            } catch (err) { previewStatus.innerText = "Error"; }
+        }
+
+        async function handleOCR(input) {
+            if (input.files[0]) await processOCRFile(input.files[0]);
+            input.value = '';
+        }
+
+        function closeImagePreview() { document.getElementById('image-preview-area').classList.add('hidden'); }
+
+        function addMessage(role, text) {
+            const wrapper = document.createElement('div');
+            wrapper.className = `flex ${role === 'user' ? 'justify-end' : 'justify-start'} message-appear`;
+            const isUser = role === 'user';
+            wrapper.innerHTML = `
+                <div class="flex gap-3 max-w-[90%] md:max-w-[85%] ${isUser ? 'flex-row-reverse' : 'flex-row'}">
+                    <div class="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${isUser ? 'bg-indigo-600 shadow-md' : 'bg-white border border-slate-200'}">
+                        <i data-lucide="${isUser ? 'user' : 'bot'}" class="w-4 h-4 ${isUser ? 'text-white' : 'text-indigo-600'}"></i>
+                    </div>
+                    <div class="p-3.5 rounded-2xl shadow-sm text-[14px] leading-relaxed whitespace-pre-wrap ${isUser ? 'bg-indigo-600 text-white rounded-tr-none' : 'bg-white border border-slate-100 text-slate-800 rounded-tl-none'}">${text}</div>
+                </div>`;
+            chatContainer.appendChild(wrapper);
+            lucide.createIcons();
+            chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'smooth' });
+        }
+
+        chatForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const text = userInput.value.trim();
+            if (!text) return;
+            addMessage('user', text);
+            userInput.value = '';
+            const loadingId = 'L' + Date.now();
+            const loadingDiv = document.createElement('div');
+            loadingDiv.id = loadingId;
+            loadingDiv.className = "text-slate-400 text-[11px] font-bold px-12 animate-pulse";
+            loadingDiv.innerText = "Processing...";
+            chatContainer.appendChild(loadingDiv);
+            
+            try {
+                const res = await fetch(`${API_BASE_URL}/ask`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        language_type: "english",
+                        prompt: text,
+                        use_general_knowledge: !document.getElementById('document-mode-toggle').checked
+                    })
+                });
+                const data = await res.json();
+                document.getElementById(loadingId).remove();
+                addMessage('assistant', data.model_response);
+            } catch (err) {
+                document.getElementById(loadingId).remove();
+                addMessage('assistant', "Network issue. Please try again.");
+            }
+        });
+
+        // Car Prediction Logic
+        document.getElementById('car-predict-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = e.target.querySelector('button[type="submit"]');
+            btn.disabled = true;
+            btn.innerText = "Calculating...";
+            try {
+                const res = await fetch(`${API_BASE_URL}/predict-car-price`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        brand: document.getElementById('car-brand').value,
+                        year: parseInt(document.getElementById('car-year').value),
+                        kilometers: parseInt(document.getElementById('car-km').value),
+                        damaged: document.getElementById('car-damaged').value
+                    })
+                });
+                const data = await res.json();
+                document.getElementById('car-predicted-price').innerText = `$${data.predicted_price_usd.toLocaleString()}`;
+                document.getElementById('car-result-area').classList.remove('hidden');
+            } catch (err) { alert("Failed to fetch prediction."); }
+            finally { btn.disabled = false; btn.innerHTML = `<i data-lucide="calculator" class="w-4 h-4"></i> Estimate Value`; lucide.createIcons(); }
+        });
+    </script>
+</body>
+</html>
