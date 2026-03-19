@@ -10,6 +10,12 @@ import datetime
 import io
 import joblib
 
+# Added strictly for the integrated OCR fix
+import cv2
+import numpy as np
+import pytesseract
+import platform
+
 from typing import List, Optional
 
 # --- CLOUD API SETUP ---
@@ -23,13 +29,6 @@ ai_client = OpenAI(
     api_key=CLOUD_API_KEY,
     base_url=CLOUD_BASE_URL
 )
-
-# --- Import User's Custom OCR Modules ---
-try:
-    from preprocessing import preprocess_image
-    from ocr_engine import run_ocr
-except ImportError:
-    logging.warning("Custom OCR modules not found. Please ensure 'preprocessing.py' and 'ocr_engine.py' are in the same folder.")
 
 # Specialized libraries for PDF/Word extraction (ensure these are installed)
 try:
@@ -154,6 +153,29 @@ def extract_text_from_file(filename: str, content: bytes) -> str:
     else:
         raise ValueError(f"Unsupported file type: {ext}")
 
+# --- NEW: Integrated OCR Functions ---
+def preprocess_image(image_bytes):
+    nparr = np.frombuffer(image_bytes, np.uint8)
+    image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+    
+    if image is None:
+        raise ValueError("Could not decode the uploaded image.")
+
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    denoised = cv2.GaussianBlur(gray, (5, 5), 0)
+    thresh = cv2.adaptiveThreshold(
+        denoised, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2
+    )
+    return thresh
+
+def run_ocr(image_bytes, language="eng+ara"):
+    if platform.system() == "Windows":
+        pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+        
+    cleaned_image = preprocess_image(image_bytes)
+    text = pytesseract.image_to_string(cleaned_image, lang=language)
+    return text
+
 # --- Endpoints ---
 
 @app.get("/")
@@ -192,29 +214,18 @@ async def get_status():
 async def extract_image_text(file: UploadFile = File(...)):
     """Receives an image, runs user's custom OCR pipeline, and returns text."""
     try:
-        temp_file_path = os.path.join(UPLOAD_DIR, f"temp_{file.filename}")
+        # 1. Read the raw bytes directly from the upload
         content = await file.read()
         
-        with open(temp_file_path, "wb") as f:
-            f.write(content)
-            
-        # 1. Run user's preprocessing
-        processed_image = preprocess_image(temp_file_path)
-        
-        # 2. Run user's OCR engine
-        extracted_text = run_ocr(processed_image, language="eng+ara")
-        
-        # 3. Clean up the temporary file
-        os.remove(temp_file_path)
+        # 2. Run the integrated OCR engine directly
+        extracted_text = run_ocr(content, language="eng+ara")
         
         return {"text": extracted_text.strip()}
     
     except Exception as e:
         logger.error(f"OCR Pipeline Error: {str(e)}")
-        if 'temp_file_path' in locals() and os.path.exists(temp_file_path):
-            os.remove(temp_file_path)
         raise HTTPException(status_code=500, detail=f"OCR Failed: {str(e)}")
-
+    
 @app.post("/upload")
 async def upload_document(file: UploadFile = File(...)):
     """Handles file storage in 'data/' and vectorizes content via Cloud API."""

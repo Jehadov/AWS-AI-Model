@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
-    <title>Company Enterprise AI - Assistant</title>
+    <title>Jehadov AI - Assistant</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
@@ -14,7 +14,6 @@
         .scrollbar-thin::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
         .message-appear { animation: slideUp 0.3s ease-out forwards; }
         @keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        /* Fix for mobile browser address bars */
         .h-screen-fix { height: 100vh; height: calc(var(--vh, 1vh) * 100); }
     </style>
 </head>
@@ -77,7 +76,7 @@
                     <div class="bg-indigo-600 p-2 rounded-lg shadow-lg shadow-indigo-200">
                         <i data-lucide="building-2" class="text-white w-5 h-5"></i>
                     </div>
-                    <h1 class="font-bold text-lg tracking-tight">Company AI</h1>
+                    <h1 class="font-bold text-lg tracking-tight">Jehadov AI</h1>
                 </div>
                 <button onclick="toggleSidebar()" class="md:hidden text-slate-400 hover:text-slate-700 p-1">
                     <i data-lucide="chevron-left" class="w-6 h-6"></i>
@@ -88,7 +87,7 @@
                 <button onclick="navigateTo('/', 'FrontEnd.html')" class="w-full flex items-center gap-3 px-3 py-3 bg-indigo-50 text-indigo-700 rounded-xl font-medium transition-all group">
                     <i data-lucide="message-square" class="w-[18px] h-[18px]"></i> <span>AI Assistant</span>
                 </button>
-                <button onclick="navigateTo('/knowledgebase', 'KnowledgeBase.html')" class="w-full flex items-center gap-3 px-3 py-3 text-slate-600 hover:bg-slate-50 rounded-xl font-medium transition-all group">
+                <button onclick="navigateTo('/knowledgeBase', 'KnowledgeBase.html')" class="w-full flex items-center gap-3 px-3 py-3 text-slate-600 hover:bg-slate-50 rounded-xl font-medium transition-all group">
                     <i data-lucide="files" class="w-[18px] h-[18px]"></i> <span>Knowledge Base</span>
                 </button>
                 <div class="text-xs font-semibold text-slate-400 px-2 py-1 mt-6 uppercase tracking-wider">ML Components</div>
@@ -128,40 +127,42 @@
                                 <i data-lucide="bot" class="w-4 h-4 text-indigo-600"></i>
                             </div>
                             <div class="p-3.5 rounded-2xl shadow-sm text-sm bg-white border border-slate-100 text-slate-800 rounded-tl-none leading-relaxed">
-                                Welcome, <b>Jehad</b>. How can I assist you with your projects today? You can drag images here or use the camera icon to scan documents.
+                                Welcome, How can I assist you with your projects today? You can drag images here or use the camera icon to scan documents.
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <div class="p-4 md:p-6 border-t border-slate-100 bg-white">
-                    <div id="image-preview-area" class="hidden absolute bottom-[100%] left-4 right-4 mb-2 p-3 bg-white border border-slate-200 rounded-2xl shadow-xl items-center gap-3 z-20">
-                        <img id="preview-img" src="" class="w-12 h-12 object-cover rounded-lg border shadow-sm">
-                        <div class="flex-1 min-w-0">
-                            <p id="preview-name" class="text-xs font-bold text-slate-700 truncate"></p>
-                            <p id="preview-status" class="text-[10px] font-bold uppercase tracking-wider text-indigo-600"></p>
+                <div class="p-4 md:p-6 border-t border-slate-100 bg-white relative flex-shrink-0">
+                    <div id="image-preview-area" class="hidden absolute bottom-[110%] left-4 md:left-6 p-3 bg-white border border-slate-200 rounded-2xl shadow-xl items-center gap-4 z-20 transition-all flex">
+                        <img id="preview-img" src="" class="w-12 h-12 md:w-14 md:h-14 object-cover rounded-xl border border-slate-100 shadow-sm">
+                        <div class="flex flex-col pr-4">
+                            <span id="preview-name" class="text-xs font-bold text-slate-700 max-w-[120px] md:max-w-[150px] truncate"></span>
+                            <span id="preview-status" class="text-[10px] font-bold mt-0.5 uppercase tracking-wider text-indigo-600"></span>
                         </div>
-                        <button onclick="closeImagePreview()" class="p-1.5 bg-slate-50 rounded-full text-slate-400"><i data-lucide="x" class="w-4 h-4"></i></button>
+                        <button type="button" onclick="closeImagePreview()" class="absolute -top-2 -right-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-full p-1 shadow-sm transition-colors">
+                            <i data-lucide="x" class="w-3 h-3"></i>
+                        </button>
                     </div>
 
-                    <form id="chat-form" class="max-w-4xl mx-auto space-y-3">
-                        <div class="flex items-center px-1">
-                            <label class="flex items-center gap-2 text-[11px] text-slate-500 font-bold cursor-pointer uppercase tracking-wider">
-                                <input type="checkbox" id="document-mode-toggle" class="w-3.5 h-3.5 text-indigo-600 rounded border-slate-300">
-                                Knowledge Base
+                    <form id="chat-form" class="max-w-4xl mx-auto flex flex-col gap-3">
+                        <div class="flex items-center justify-between px-1 md:px-2">
+                            <label class="flex items-center gap-2 text-[11px] md:text-xs text-slate-500 font-medium cursor-pointer hover:text-indigo-600 transition-colors">
+                                <input type="checkbox" id="document-mode-toggle" class="w-3.5 h-3.5 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500">
+                                Search Knowledge Base
                             </label>
                         </div>
 
-                        <div class="relative flex items-center gap-2">
-                            <div class="relative flex-1">
-                                <input type="text" id="user-input" autocomplete="off" placeholder="Message..." class="w-full bg-slate-50 border border-slate-200 rounded-2xl py-4 pl-12 pr-4 focus:outline-none focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-500 transition-all text-[15px] md:text-sm shadow-inner">
-                                <button type="button" onclick="document.getElementById('ocr-input').click()" class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-indigo-600 p-1">
-                                    <i data-lucide="camera" class="w-5 h-5"></i>
-                                </button>
-                                <input type="file" id="ocr-input" class="hidden" accept="image/*" onchange="handleOCR(this)">
-                            </div>
-                            <button type="submit" id="submit-btn" class="bg-indigo-600 text-white p-4 rounded-2xl hover:bg-indigo-700 shadow-lg shadow-indigo-100 active:scale-95 transition-all">
-                                <i data-lucide="send" class="w-5 h-5"></i>
+                        <div class="relative flex-1 group">
+                            <input type="text" id="user-input" autocomplete="off" placeholder="Ask a question..." class="w-full bg-white border border-slate-200 rounded-2xl py-3.5 md:py-4 pl-10 md:pl-12 pr-12 md:pr-14 shadow-xl shadow-slate-200/40 focus:outline-none focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-500 transition-all text-sm">
+                            
+                            <button type="button" onclick="document.getElementById('ocr-input').click()" class="absolute left-2.5 md:left-3 top-1/2 -translate-y-1/2 p-2 text-slate-400 hover:text-indigo-600 transition-all" title="Extract Text from Image">
+                                <i data-lucide="camera" class="w-4 h-4 md:w-5 md:h-5"></i>
+                            </button>
+                            <input type="file" id="ocr-input" class="hidden" accept="image/png, image/jpeg, image/jpg" onchange="handleOCR(this)">
+
+                            <button type="submit" id="submit-btn" class="absolute right-2 md:right-3 top-1/2 -translate-y-1/2 p-2 md:p-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all shadow-md active:scale-95">
+                                <i data-lucide="send" class="w-4 h-4 md:w-5 md:h-5"></i>
                             </button>
                         </div>
                     </form>
@@ -202,32 +203,74 @@
 
         function closeCarModal() { document.getElementById('car-modal').classList.add('hidden'); }
 
-        // OCR & Chat Logic (Same as yours, but kept intact)
+        // --- DRAG AND DROP OCR LOGIC ---
+        const viewChat = document.getElementById('view-chat');
+        const dropOverlay = document.getElementById('drop-overlay');
+
+        viewChat.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropOverlay.classList.remove('hidden');
+            dropOverlay.classList.add('flex');
+        });
+
+        viewChat.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            if (e.relatedTarget === null || !viewChat.contains(e.relatedTarget)) {
+                dropOverlay.classList.add('hidden');
+                dropOverlay.classList.remove('flex');
+            }
+        });
+
+        viewChat.addEventListener('drop', async (e) => {
+            e.preventDefault();
+            dropOverlay.classList.add('hidden');
+            dropOverlay.classList.remove('flex');
+            
+            if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                const file = e.dataTransfer.files[0];
+                if (file.type.startsWith('image/')) {
+                    await processOCRFile(file);
+                } else {
+                    alert("Please drop a valid image file.");
+                }
+            }
+        });
+
         async function processOCRFile(file) {
             const previewArea = document.getElementById('image-preview-area');
             const previewImg = document.getElementById('preview-img');
             const previewName = document.getElementById('preview-name');
             const previewStatus = document.getElementById('preview-status');
             const reader = new FileReader();
+            
             reader.onload = (e) => {
                 previewImg.src = e.target.result;
                 previewName.innerText = file.name;
                 previewStatus.innerText = "Scanning...";
-                previewArea.classList.remove('hidden'); previewArea.classList.add('flex');
+                previewArea.classList.remove('hidden'); 
+                previewArea.classList.add('flex');
             };
             reader.readAsDataURL(file);
+            
             const formData = new FormData();
             formData.append('file', file);
+            
             try {
                 const res = await fetch(`${API_BASE_URL}/ocr`, { method: 'POST', body: formData });
                 const data = await res.json();
-                if (res.ok) {
-                    userInput.value += (userInput.value ? ' ' : '') + data.text;
-                    previewStatus.innerText = "Success!";
-                    previewStatus.classList.replace('text-indigo-600', 'text-green-600');
-                    setTimeout(closeImagePreview, 3000);
-                }
-            } catch (err) { previewStatus.innerText = "Error"; }
+                
+                if (!res.ok) throw new Error(data.detail || "API Error");
+                
+                userInput.value += (userInput.value ? ' ' : '') + data.text;
+                previewStatus.innerText = "Success!";
+                previewStatus.className = "text-[10px] font-bold mt-0.5 uppercase tracking-wider text-green-600";
+                setTimeout(closeImagePreview, 3000);
+                
+            } catch (err) { 
+                previewStatus.innerText = "Failed";
+                previewStatus.className = "text-[10px] font-bold mt-0.5 uppercase tracking-wider text-red-600";
+                alert("OCR Failed: " + err.message); 
+            }
         }
 
         async function handleOCR(input) {
@@ -249,7 +292,7 @@
                     <div class="p-3.5 rounded-2xl shadow-sm text-[14px] leading-relaxed whitespace-pre-wrap ${isUser ? 'bg-indigo-600 text-white rounded-tr-none' : 'bg-white border border-slate-100 text-slate-800 rounded-tl-none'}">${text}</div>
                 </div>`;
             chatContainer.appendChild(wrapper);
-            lucide.createIcons();
+            lucide.createIcons({ root: wrapper });
             chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'smooth' });
         }
 
@@ -278,10 +321,11 @@
                 });
                 const data = await res.json();
                 document.getElementById(loadingId).remove();
+                if (!res.ok) throw new Error(data.detail || "Response failed");
                 addMessage('assistant', data.model_response);
             } catch (err) {
                 document.getElementById(loadingId).remove();
-                addMessage('assistant', "Network issue. Please try again.");
+                addMessage('assistant', "⚠️ System error: " + err.message);
             }
         });
 
@@ -303,9 +347,10 @@
                     })
                 });
                 const data = await res.json();
+                if (!res.ok) throw new Error(data.detail);
                 document.getElementById('car-predicted-price').innerText = `$${data.predicted_price_usd.toLocaleString()}`;
                 document.getElementById('car-result-area').classList.remove('hidden');
-            } catch (err) { alert("Failed to fetch prediction."); }
+            } catch (err) { alert("Failed to fetch prediction: " + err.message); }
             finally { btn.disabled = false; btn.innerHTML = `<i data-lucide="calculator" class="w-4 h-4"></i> Estimate Value`; lucide.createIcons(); }
         });
     </script>
