@@ -151,6 +151,7 @@
                                 <input type="checkbox" id="document-mode-toggle" class="w-3.5 h-3.5 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500">
                                 Search Knowledge Base
                             </label>
+                            <button type="button" onclick="clearChatHistory()" class="text-[10px] font-bold text-slate-400 hover:text-red-500 uppercase tracking-widest transition-colors">Clear History</button>
                         </div>
 
                         <div class="relative flex-1 group">
@@ -187,6 +188,33 @@
         const sidebar = document.getElementById('sidebar');
 
         lucide.createIcons();
+
+        // --- LOCAL STORAGE LOGIC ---
+        const STORAGE_KEY = 'jehadov_ai_chat';
+
+        function saveChatHistory() {
+            localStorage.setItem(STORAGE_KEY, chatContainer.innerHTML);
+        }
+
+        function loadChatHistory() {
+            const savedData = localStorage.getItem(STORAGE_KEY);
+            if (savedData) {
+                chatContainer.innerHTML = savedData;
+                lucide.createIcons({ root: chatContainer });
+                chatContainer.scrollTo({ top: chatContainer.scrollHeight });
+            }
+        }
+
+        function clearChatHistory() {
+            if (confirm("Reset conversation history?")) {
+                localStorage.removeItem(STORAGE_KEY);
+                location.reload();
+            }
+        }
+
+        // Initialize history on load
+        window.addEventListener('DOMContentLoaded', loadChatHistory);
+        // --- END LOCAL STORAGE LOGIC ---
 
         function toggleSidebar() {
             sidebar.classList.toggle('-translate-x-full');
@@ -294,6 +322,9 @@
             chatContainer.appendChild(wrapper);
             lucide.createIcons({ root: wrapper });
             chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'smooth' });
+            
+            // Trigger save to local storage
+            saveChatHistory();
         }
 
         chatForm.addEventListener('submit', async (e) => {
@@ -324,7 +355,7 @@
                 if (!res.ok) throw new Error(data.detail || "Response failed");
                 addMessage('assistant', data.model_response);
             } catch (err) {
-                document.getElementById(loadingId).remove();
+                if(document.getElementById(loadingId)) document.getElementById(loadingId).remove();
                 addMessage('assistant', "⚠️ System error: " + err.message);
             }
         });
