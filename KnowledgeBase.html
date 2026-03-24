@@ -101,6 +101,7 @@
                     <i data-lucide="car" class="w-[18px] h-[18px] group-hover:text-indigo-600"></i> <span>Car Predictor</span>
                 </button>
             </nav>
+
         </aside>
 
         <main class="flex-1 flex flex-col relative bg-white w-full">
@@ -112,7 +113,7 @@
                     <span class="text-sm font-semibold text-slate-600">System: <span class="text-indigo-600">Secure Knowledge Management</span></span>
                 </div>
                 <div class="flex items-center gap-2">
-                    <span id="api-status" class="flex items-center gap-1.5 text-[10px] font-bold px-2 py-1 rounded-full bg-slate-100 text-slate-500">Checking...</span>
+                    <span class="text-[10px] md:text-[11px] font-bold text-indigo-500 bg-indigo-50 border border-indigo-100 px-2 py-1 rounded shadow-sm">SECURE STORAGE</span>
                 </div>
             </header>
 
@@ -137,7 +138,7 @@
 
                     <div class="bg-white border border-slate-100 rounded-2xl overflow-hidden shadow-sm">
                         <div class="p-4 border-b border-slate-50 bg-slate-50/30 flex justify-between items-center">
-                            <span class="text-[11px] md:text-xs font-bold text-slate-400 uppercase tracking-wider">Active Indexed Knowledge</span>
+                            <span class="text-[11px] md:text-xs font-bold text-slate-400 uppercase tracking-wider">Indexed Documents</span>
                         </div>
                         <div class="divide-y divide-slate-50" id="document-list">
                             <div class="p-8 md:p-12 text-center text-slate-300 text-sm italic">Initialize your data to begin cloud-based inference.</div>
@@ -149,20 +150,24 @@
     </div>
 
     <script>
-        const API_BASE_URL = window.location.origin;       
+        // This works both locally and on Firebase Hosting automatically!
+        // This automatically grabs "http://13.60.181.215:8000" or whatever IP the server uses!
+        const API_BASE_URL = window.location.origin;        
         const fileInput = document.getElementById('file-input');
         const documentList = document.getElementById('document-list');
         const uploadStatus = document.getElementById('upload-status');
-        const STORAGE_KEY = 'jehadov_kb_file';
+        
+        // Key for local storage
+        const STORAGE_KEY = 'jehadov_current_doc';
 
         lucide.createIcons();
 
-        // Load stored file info from memory on startup
-        function loadStoredFile() {
-            const storedFile = localStorage.getItem(STORAGE_KEY);
-            if (storedFile) {
-                const data = JSON.parse(storedFile);
-                renderFileUI(data.name, data.chunks);
+        // Load document from local memory when page loads
+        function loadFromMemory() {
+            const savedDoc = localStorage.getItem(STORAGE_KEY);
+            if (savedDoc) {
+                const docData = JSON.parse(savedDoc);
+                addDocToList(docData.filename, docData.chunks);
             }
         }
 
@@ -222,14 +227,23 @@
             try {
                 const response = await fetch(`${API_BASE_URL}/status`);
                 const data = await response.json();
+                
                 const statusEl = document.getElementById('api-status');
+                const pulseEl = document.getElementById('status-pulse');
 
+                // UPDATE: Target cloud_api_connected for Groq status
                 if (data.cloud_api_connected) {
-                    statusEl.innerText = "● System Active";
-                    statusEl.className = "flex items-center gap-1.5 text-[10px] font-bold px-2 py-1 rounded-full bg-green-100 text-green-700";
+                    if(statusEl) {
+                        statusEl.innerText = "● Active";
+                        statusEl.className = "flex items-center gap-1.5 text-[10px] font-bold px-2 py-1 rounded-full bg-green-100 text-green-700";
+                    }
+                    if(pulseEl) pulseEl.className = "h-2 w-2 rounded-full bg-green-500 animate-pulse hidden md:block";
                 } else {
-                    statusEl.innerText = "○ Disconnected";
-                    statusEl.className = "flex items-center gap-1.5 text-[10px] font-bold px-2 py-1 rounded-full bg-red-100 text-red-700";
+                    if(statusEl) {
+                        statusEl.innerText = "○ Disconnected";
+                        statusEl.className = "flex items-center gap-1.5 text-[10px] font-bold px-2 py-1 rounded-full bg-red-100 text-red-700";
+                    }
+                    if(pulseEl) pulseEl.className = "h-2 w-2 rounded-full bg-red-500 hidden md:block";
                 }
             } catch (err) { console.warn("Sync Error"); }
         }
@@ -239,20 +253,19 @@
             if (files.length === 0) return;
             uploadStatus.classList.remove('hidden');
             
-            // Only handle the first file to ensure overwrite logic
+            // Just take the first file selected to enforce the one-file rule
             const file = files[0];
             const formData = new FormData();
             formData.append('file', file);
-
+            
             try {
                 const res = await fetch(`${API_BASE_URL}/upload`, { method: 'POST', body: formData });
                 const result = await res.json();
                 if (res.ok) {
-                    // Save to local memory
-                    const fileData = { name: file.name, chunks: result.chunks };
-                    localStorage.setItem(STORAGE_KEY, JSON.stringify(fileData));
+                    // Save to local storage (this automatically overwrites the old one)
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify({ filename: file.name, chunks: result.chunks }));
                     
-                    // Clear list and add new file
+                    // Display the new file in the UI
                     addDocToList(file.name, result.chunks);
                 } else {
                     alert(`Error: ${result.detail || 'Processing error'}`);
@@ -264,34 +277,31 @@
         });
 
         function addDocToList(filename, chunks) {
-            // Overwrite UI: Clear everything first
-            documentList.innerHTML = ''; 
-            renderFileUI(filename, chunks);
-        }
-
-        function renderFileUI(filename, chunks) {
-            if (documentList.innerHTML.includes('Initialize your data')) documentList.innerHTML = '';
+            // Clearing the document list completely removes the old file from the UI
+            documentList.innerHTML = '';
             
             const item = document.createElement('div');
             item.className = "p-4 flex items-center justify-between bg-white hover:bg-slate-50 message-appear";
             item.innerHTML = `
                 <div class="flex items-center gap-3 md:gap-4">
-                    <div class="p-2 bg-green-50 text-green-600 rounded-lg"><i data-lucide="check-circle" class="w-4 h-4 md:w-5 md:h-5"></i></div>
+                    <div class="p-2 bg-indigo-50 text-indigo-600 rounded-lg"><i data-lucide="file-text" class="w-4 h-4 md:w-5 md:h-5"></i></div>
                     <div>
                         <p class="text-xs md:text-sm font-semibold text-slate-700 max-w-[150px] md:max-w-xs truncate">${filename}</p>
-                        <p class="text-[9px] md:text-[10px] text-slate-400 uppercase font-bold">${chunks} Chunks Vectorized Successfully</p>
+                        <p class="text-[9px] md:text-[10px] text-slate-400 uppercase font-bold">${chunks} Chunks Indexed</p>
                     </div>
                 </div>
                 <div class="flex items-center gap-2">
-                    <span class="text-[9px] md:text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 uppercase">Knowledge Active</span>
+                    <span class="text-[9px] md:text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700 uppercase">Vectorized</span>
                 </div>
             `;
+            // Use appendChild instead of prepend since there is only ever one item
             documentList.appendChild(item);
             lucide.createIcons();
         }
 
-        // Initialize status and saved data
-        window.addEventListener('DOMContentLoaded', loadStoredFile);
+        // Call loadFromMemory on page load
+        window.addEventListener('DOMContentLoaded', loadFromMemory);
+
         setInterval(fetchStatus, 5000);
         fetchStatus();
     </script>
